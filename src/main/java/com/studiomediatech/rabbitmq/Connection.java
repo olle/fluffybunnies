@@ -1,5 +1,7 @@
 package com.studiomediatech.rabbitmq;
 
+import com.studiomediatech.amqp.codec.AmqpCodec;
+
 import io.netty.bootstrap.Bootstrap;
 
 import io.netty.buffer.ByteBuf;
@@ -96,17 +98,32 @@ public final class Connection {
             @Override
             protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 
-                int type = (int) in.readByte();
-                int channel = in.readShort();
-                int size = in.readInt();
+                AmqpCodec codec = AmqpCodec.valueOf(in);
 
-                byte[] payload = new byte[size];
-                in.readBytes(payload);
+                short type = codec.readOctet();
+                int channel = codec.readShortUint();
+                long size = codec.readLongUint();
 
-                assert 0xce == in.readByte();
+                byte[] p1;
+                byte[] p2;
 
-                AmqpFrame frame = new AmqpFrame(type, channel, size);
-                frame.payload = payload;
+                if (size > Integer.MAX_VALUE) {
+                    int rest = (int) (size - Integer.MAX_VALUE);
+                    p1 = new byte[Integer.MAX_VALUE];
+                    p2 = new byte[rest];
+                    codec.read(p1);
+                    codec.read(p2);
+                } else {
+                    p1 = new byte[(int) size];
+                    codec.read(p1);
+                }
+
+                assert 0xce == codec.readOctet();
+
+                // TODO: Spec conformity.
+                AmqpFrame frame = new AmqpFrame(type, channel, (int) size);
+                frame.payload = p1;
+                // frame.bigPayload = p2;
 
                 out.add(frame);
             }
