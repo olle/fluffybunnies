@@ -1,10 +1,11 @@
 package com.studiomediatech.rabbitmq;
 
 import com.studiomediatech.amqp.codec.AmqpFrame;
+import com.studiomediatech.amqp.codec.AmqpMethod;
+import com.studiomediatech.amqp.codec.AmqpMethod.Connection.AmqpStartMethod;
+import com.studiomediatech.amqp.codec.AmqpProtocol;
 
 import io.netty.bootstrap.Bootstrap;
-
-import io.netty.buffer.Unpooled;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -40,8 +41,10 @@ public final class Connection {
                         public void initChannel(SocketChannel ch) throws Exception {
 
                             ch.pipeline()
-                            .addLast("decoder", new AmqpFrame.Decoder())
                             .addLast("logger", new LoggingHandler(LogLevel.INFO))
+                            .addLast("protocol-encoder", new AmqpProtocol.Encoder())
+                            .addLast("frame-decoder", new AmqpFrame.Decoder())
+                            .addLast("method-decoder", new AmqpMethod.Decoder())
                             .addLast("handler", new Negotiate());
                         }
                     });
@@ -52,19 +55,19 @@ public final class Connection {
         }
     }
 
-    static class Negotiate extends SimpleChannelInboundHandler<AmqpFrame> {
+    static class Negotiate extends SimpleChannelInboundHandler<AmqpStartMethod> {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
 
-            ctx.writeAndFlush(Unpooled.copiedBuffer(new byte[] { 'A', 'M', 'Q', 'P', 0, 0, 9, 1 }));
+            ctx.writeAndFlush(AmqpProtocol.create());
         }
 
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, AmqpFrame msg) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, AmqpStartMethod msg) throws Exception {
 
-            System.out.println(">>>>> RECEIVED FRAME: " + msg);
+            System.out.println(">>>>> RECEIVED: " + msg);
         }
     }
 }

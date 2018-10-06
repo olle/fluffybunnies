@@ -1,6 +1,7 @@
 package com.studiomediatech.amqp.codec;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import io.netty.channel.ChannelHandlerContext;
 
@@ -61,6 +62,18 @@ public final class AmqpFrame {
         return "AmqpFrame [type=" + type + ", channel=" + channel + ", size=" + size + ", payload-1.length="
             + Optional.ofNullable(p1).map(a -> a.length).orElse(0)
             + ", payload-2.length=" + Optional.ofNullable(p2).map(a -> a.length).orElse(0) + "]";
+    }
+
+
+    boolean unlessMethod() {
+
+        return type != Type.METHOD;
+    }
+
+
+    public ByteBuf buffer() {
+
+        return Unpooled.wrappedBuffer(this.p1, this.p2);
     }
 
     public static class Decoder extends ReplayingDecoder<AmqpFrame> {
