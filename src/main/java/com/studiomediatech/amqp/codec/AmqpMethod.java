@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 
@@ -51,7 +52,7 @@ public class AmqpMethod {
         }
 
 
-        public Function<ByteBuf, AmqpMethod> factoryFor(ID id) {
+        public Function<Codec, AmqpMethod> factoryFor(ID id) {
 
             switch (id) {
                 case START:
@@ -95,12 +96,13 @@ public class AmqpMethod {
                 return;
             }
 
-            ByteBuf buf = msg.buffer();
+            ByteBuf buf = msg.payload();
+            Codec c = Codec.wrapping(buf);
 
-            Clazz clazz = AmqpMethod.Clazz.valueOf(buf.readUnsignedShort());
-            ID id = AmqpMethod.ID.valueOf(buf.readUnsignedShort());
+            Clazz clazz = c.readMethodClazz();
+            ID id = c.readMethodId();
 
-            AmqpMethod method = clazz.factoryFor(id).apply(buf);
+            AmqpMethod method = clazz.factoryFor(id).apply(c);
 
             out.add(method);
         }
@@ -126,10 +128,11 @@ public class AmqpMethod {
             }
 
 
-            public static AmqpMethod valueOf(ByteBuf buf) {
+            public static AmqpMethod valueOf(Codec c) {
 
-                short versionMajor = buf.readUnsignedByte();
-                short versionMinor = buf.readUnsignedByte();
+                short versionMajor = c.readConnectionStartMajorVersion();
+                short versionMinor = c.readConnectionStartMinorVersion();
+                Map<String, Object> serverProperties = c.readTable();
 
                 return new AmqpStartMethod(versionMajor, versionMinor);
             }
@@ -137,7 +140,7 @@ public class AmqpMethod {
 
         public static class AmqpStartOkMethod extends AmqpMethod {
 
-            public static AmqpMethod valueOf(ByteBuf buf) {
+            public static AmqpMethod valueOf(Codec c) {
 
                 return null;
             }

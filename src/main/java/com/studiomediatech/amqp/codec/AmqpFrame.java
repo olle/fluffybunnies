@@ -1,14 +1,12 @@
 package com.studiomediatech.amqp.codec;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 import io.netty.channel.ChannelHandlerContext;
 
 import io.netty.handler.codec.ReplayingDecoder;
 
 import java.util.List;
-import java.util.Optional;
 
 
 public final class AmqpFrame {
@@ -44,24 +42,20 @@ public final class AmqpFrame {
     private final Type type;
     private final int channel;
     private final long size;
-    private final byte[] p1;
-    private final byte[] p2;
+    private final ByteBuf payload;
 
-    private AmqpFrame(Type type, int channel, long size, byte[] p1, byte[] p2) {
+    public AmqpFrame(Type type, int channel, long size, ByteBuf payload) {
 
         this.type = type;
         this.channel = channel;
         this.size = size;
-        this.p1 = p1;
-        this.p2 = p2;
+        this.payload = payload;
     }
 
     @Override
     public String toString() {
 
-        return "AmqpFrame [type=" + type + ", channel=" + channel + ", size=" + size + ", payload-1.length="
-            + Optional.ofNullable(p1).map(a -> a.length).orElse(0)
-            + ", payload-2.length=" + Optional.ofNullable(p2).map(a -> a.length).orElse(0) + "]";
+        return "AmqpFrame [type=" + type + ", channel=" + channel + ", size=" + size + ", payload=" + payload + "]";
     }
 
 
@@ -71,9 +65,9 @@ public final class AmqpFrame {
     }
 
 
-    public ByteBuf buffer() {
+    public ByteBuf payload() {
 
-        return Unpooled.wrappedBuffer(this.p1, this.p2);
+        return payload;
     }
 
     public static class Decoder extends ReplayingDecoder<AmqpFrame> {
@@ -81,32 +75,16 @@ public final class AmqpFrame {
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 
-            Type type = AmqpFrame.Type.valueOf(in.readUnsignedByte());
-            int channel = in.readUnsignedShort();
+            Codec c = Codec.wrapping(in);
 
-            long size = in.readUnsignedInt();
+            Type type = c.readFrameType();
+            int channel = c.readFrameChannelNumber();
+            long size = c.readFramePayloadSize();
+            ByteBuf payload = c.readFramePayload(size);
 
-            byte[] p1 = null;
-            byte[] p2 = null;
+            c.readFrameEndMark();
 
-            if (size <= Integer.MAX_VALUE) {
-                p1 = new byte[(int) size];
-                in.readBytes(p1);
-            } else {
-                int rest = (int) (size - Integer.MAX_VALUE);
-                p1 = new byte[Integer.MAX_VALUE];
-                p2 = new byte[rest];
-                in.readBytes(p1);
-                in.readBytes(p2);
-            }
-
-            int eof = in.readUnsignedByte();
-
-            if (eof != 0xCE) {
-                throw new IllegalStateException("Invalid end of frame marker");
-            }
-
-            out.add(new AmqpFrame(type, channel, size, p1, p2));
+            out.add(new AmqpFrame(type, channel, size, payload));
         }
     }
 }
