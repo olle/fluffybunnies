@@ -7,10 +7,17 @@ import com.studiomediatech.amqp.codec.AmqpMethod.ID;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import java.nio.charset.Charset;
+
+import java.time.Instant;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 
@@ -124,11 +131,11 @@ public final class Codec {
         Map<String, Object> table = new HashMap<>();
 
         ByteBuf tableBuf = _safeSizedSubBuffer(size);
-        Codec cc = Codec.wrapping(tableBuf);
+        Codec c = Codec.wrapping(tableBuf);
 
-        while (cc._tableIsReadable()) {
-            String key = cc._readTableFieldName();
-            Object value = cc._readTableFieldValue();
+        while (c._tableIsReadable()) {
+            String key = c._readTableFieldName();
+            Object value = c._readFieldValue();
             table.putIfAbsent(key, value);
         }
 
@@ -148,7 +155,7 @@ public final class Codec {
     }
 
 
-    private Object _readTableFieldValue() {
+    private Object _readFieldValue() {
 
         short fieldType = buf.readUnsignedByte();
 
@@ -157,17 +164,155 @@ public final class Codec {
                 return readBoolean();
 
             case 'b':
-                return readShortShortInt();
+                return readShortShortInteger();
+
+            case 'B':
+                return readShortShortUInteger();
+
+            case 'U':
+                return readShortInteger();
+
+            case 'u':
+                return readShortUInteger();
+
+            case 'I':
+                return readLongInteger();
+
+            case 'i':
+                return readLongUInteger();
+
+            case 'L':
+                return readLongLongInteger();
+
+            case 'l':
+                return readLongLongUInteger();
+
+            case 'f':
+                return readFloat();
 
             case 'F':
-                return readFieldTable();
+                return readTable();
 
             case 'S':
                 return readLongString();
 
+            case 's':
+                return readShortString();
+
+            case 'd':
+                return readDouble();
+
+            case 'D':
+                return readDecimal();
+
+            case 'A':
+                return readArray();
+
+            case 'T':
+                return readTimestamp();
+
+            case 'V':
+                return null;
+
             default:
                 throw new IllegalStateException("Unknown or invalid field type: " + (char) fieldType);
         }
+    }
+
+
+    Instant readTimestamp() {
+
+        BigInteger value = readLongLongUInteger();
+
+        return Instant.ofEpochSecond(value.longValue());
+    }
+
+
+    List<Object> readArray() {
+
+        long size = buf.readUnsignedInt();
+
+        if (size == 0) {
+            return Collections.emptyList();
+        }
+
+        List<Object> array = new LinkedList<>();
+
+        ByteBuf arrayBuf = _safeSizedSubBuffer(size);
+        Codec c = Codec.wrapping(arrayBuf);
+
+        while (c._arrayIsReadable()) {
+            Object value = c._readFieldValue();
+            array.add(value);
+        }
+
+        return array;
+    }
+
+
+    private boolean _arrayIsReadable() {
+
+        return buf.isReadable();
+    }
+
+
+    BigDecimal readDecimal() {
+
+        short scale = buf.readUnsignedByte();
+        long unscaled = buf.readUnsignedInt();
+
+        return BigDecimal.valueOf(unscaled, scale);
+    }
+
+
+    Double readDouble() {
+
+        return Double.valueOf(buf.readDouble());
+    }
+
+
+    Float readFloat() {
+
+        return Float.valueOf(buf.readFloat());
+    }
+
+
+    Long readLongLongInteger() {
+
+        return Long.valueOf(buf.readLong());
+    }
+
+
+    BigInteger readLongLongUInteger() {
+
+        byte[] val = new byte[8];
+        buf.readBytes(val);
+
+        return new BigInteger(val);
+    }
+
+
+    Integer readLongInteger() {
+
+        return Integer.valueOf(buf.readInt());
+    }
+
+
+    Long readLongUInteger() {
+
+        return Long.valueOf(buf.readUnsignedInt());
+    }
+
+
+    Integer readShortInteger() {
+
+        return Integer.valueOf(buf.readShort());
+    }
+
+
+    Integer readShortUInteger() {
+
+        return Integer.valueOf(buf.readUnsignedShort());
     }
 
 
@@ -204,13 +349,13 @@ public final class Codec {
     }
 
 
-    Object readFieldTable() {
+    Integer readShortShortInteger() {
 
-        return readTable();
+        return Integer.valueOf(buf.readByte());
     }
 
 
-    Integer readShortShortInt() {
+    Integer readShortShortUInteger() {
 
         return Integer.valueOf(buf.readUnsignedByte());
     }
