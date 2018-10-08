@@ -55,7 +55,7 @@ public final class Connection {
         }
     }
 
-    static class Negotiate extends SimpleChannelInboundHandler<AmqpStartMethod> {
+    static class Negotiate extends SimpleChannelInboundHandler<AmqpMethod> {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -65,9 +65,11 @@ public final class Connection {
 
 
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, AmqpStartMethod msg) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, AmqpMethod msg) throws Exception {
 
-            System.out.println(">>>>> RECEIVED: " + msg);
+            if (msg instanceof AmqpStartMethod) {
+                System.out.println("Start: " + msg);
+            }
         }
     }
 }

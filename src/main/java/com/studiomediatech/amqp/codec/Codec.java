@@ -10,6 +10,7 @@ import io.netty.buffer.Unpooled;
 import java.nio.charset.Charset;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 
@@ -50,11 +51,11 @@ public final class Codec {
 
     ByteBuf readFramePayload(long size) {
 
-        return safeSizedSubBuffer(size);
+        return _safeSizedSubBuffer(size);
     }
 
 
-    private ByteBuf safeSizedSubBuffer(long size) {
+    private ByteBuf _safeSizedSubBuffer(long size) {
 
         if (size <= Integer.MAX_VALUE) {
             return buf.readRetainedSlice((int) size);
@@ -114,77 +115,40 @@ public final class Codec {
 
     Map<String, Object> readTable() {
 
-        // TODO: Read table, fully.
+        long size = buf.readUnsignedInt();
 
-//      while (cc.tableIsReadable()) {
-//            String name = cc.readTableFieldName();
-//            System.out.println("READ FIELD NAME: " + name);
-//
-//            Object value = cc.readTableFieldValue();
-//            System.out.println("READ FIELD VALUE: " + value);
-//        }
+        if (size == 0) {
+            return Collections.emptyMap();
+        }
 
-        return Collections.emptyMap();
+        Map<String, Object> table = new HashMap<>();
+
+        ByteBuf tableBuf = _safeSizedSubBuffer(size);
+        Codec cc = Codec.wrapping(tableBuf);
+
+        while (cc._tableIsReadable()) {
+            String key = cc._readTableFieldName();
+            Object value = cc._readTableFieldValue();
+            table.putIfAbsent(key, value);
+        }
+
+        return table;
     }
 
 
-    long readTableSize() {
-
-        return buf.readUnsignedInt();
-    }
-
-
-    ByteBuf readTable(long size) {
-
-        return safeSizedSubBuffer(size);
-    }
-
-
-    boolean tableIsReadable() {
+    private boolean _tableIsReadable() {
 
         return buf.isReadable();
     }
 
 
-    String readTableFieldName() {
+    private String _readTableFieldName() {
 
         return readShortString();
     }
 
 
-    String readShortString() {
-
-        short size = buf.readUnsignedByte();
-        byte[] str = new byte[size];
-        buf.readBytes(str);
-
-        return new String(str, DEFAULT);
-    }
-
-
-    String readLongString() {
-
-        long size = buf.readUnsignedInt();
-
-        if (size <= Integer.MAX_VALUE) {
-            byte[] str = new byte[(int) size];
-
-            return new String(str, DEFAULT);
-        }
-
-        int rest = (int) (size - Integer.MAX_VALUE);
-
-        byte[] p1 = new byte[Integer.MAX_VALUE];
-        byte[] p2 = new byte[rest];
-
-        buf.readBytes(p1);
-        buf.readBytes(p2);
-
-        return Unpooled.wrappedBuffer(p1, p2).toString(DEFAULT);
-    }
-
-
-    Object readTableFieldValue() {
+    private Object _readTableFieldValue() {
 
         short fieldType = buf.readUnsignedByte();
 
@@ -207,12 +171,42 @@ public final class Codec {
     }
 
 
+    String readShortString() {
+
+        short size = buf.readUnsignedByte();
+        byte[] str = new byte[size];
+        buf.readBytes(str);
+
+        return new String(str, DEFAULT);
+    }
+
+
+    String readLongString() {
+
+        long size = buf.readUnsignedInt();
+
+        if (size <= Integer.MAX_VALUE) {
+            byte[] str = new byte[(int) size];
+            buf.readBytes(str);
+
+            return new String(str, DEFAULT);
+        }
+
+        int rest = (int) (size - Integer.MAX_VALUE);
+
+        byte[] p1 = new byte[Integer.MAX_VALUE];
+        byte[] p2 = new byte[rest];
+
+        buf.readBytes(p1);
+        buf.readBytes(p2);
+
+        return Unpooled.wrappedBuffer(p1, p2).toString(DEFAULT);
+    }
+
+
     Object readFieldTable() {
 
-        long size = readTableSize();
-        ByteBuf t = readTable(size);
-
-        return null;
+        return readTable();
     }
 
 
@@ -225,5 +219,23 @@ public final class Codec {
     Boolean readBoolean() {
 
         return buf.readUnsignedByte() == 0x00 ? false : true;
+    }
+
+
+    Map<String, Object> readConnectionStartServerProperties() {
+
+        return readTable();
+    }
+
+
+    String readConnectionStartMechanisms() {
+
+        return readLongString();
+    }
+
+
+    String readConnectionStartLocales() {
+
+        return readLongString();
     }
 }
