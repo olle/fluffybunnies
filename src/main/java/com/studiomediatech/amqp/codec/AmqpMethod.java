@@ -4,9 +4,11 @@ import com.studiomediatech.amqp.codec.AmqpMethod.Connection.AmqpStartMethod;
 import com.studiomediatech.amqp.codec.AmqpMethod.Connection.AmqpStartOkMethod;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import io.netty.channel.ChannelHandlerContext;
 
+import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 
 import java.util.List;
@@ -14,7 +16,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 
-public class AmqpMethod {
+public abstract class AmqpMethod {
 
     public enum Clazz {
 
@@ -52,17 +54,32 @@ public class AmqpMethod {
         }
 
 
-        public Function<Codec, AmqpMethod> factoryFor(ID id) {
+        public Function<Codec, AmqpMethod> messageFactoryFor(ID id) {
 
             switch (id) {
                 case START:
-                    return AmqpStartMethod::valueOf;
+                    return AmqpStartMethod::decode;
 
                 case START_OK:
-                    return AmqpStartOkMethod::valueOf;
+                    return null;
 
                 default:
-                    throw new IllegalArgumentException("No static factory available for: " + id);
+                    throw new IllegalArgumentException("No static message factory available for: " + id);
+            }
+        }
+
+
+        public Function<AmqpMethod, ByteBuf> byteFactoryFor(ID id) {
+
+            switch (id) {
+                case START:
+                    return null;
+
+                case START_OK:
+                    return AmqpStartOkMethod::encode;
+
+                default:
+                    throw new IllegalArgumentException("No static byte factory available for: " + id);
             }
         }
     }
@@ -87,6 +104,11 @@ public class AmqpMethod {
         }
     }
 
+    abstract Clazz getMethodClazz();
+
+
+    abstract ID getMethodId();
+
     public static class Decoder extends MessageToMessageDecoder<AmqpFrame> {
 
         @Override
@@ -102,9 +124,21 @@ public class AmqpMethod {
             Clazz clazz = c.readMethodClazz();
             ID id = c.readMethodId();
 
-            AmqpMethod method = clazz.factoryFor(id).apply(c);
-
+            AmqpMethod method = clazz.messageFactoryFor(id).apply(c);
             out.add(method);
+        }
+    }
+
+    public static class Encoder extends MessageToByteEncoder<AmqpMethod> {
+
+        @Override
+        protected void encode(ChannelHandlerContext ctx, AmqpMethod msg, ByteBuf out) throws Exception {
+
+            Clazz clazz = msg.getMethodClazz();
+            ID id = msg.getMethodId();
+
+            ByteBuf buf = clazz.byteFactoryFor(id).apply(msg);
+            out.writeBytes(buf);
         }
     }
 
@@ -137,7 +171,7 @@ public class AmqpMethod {
             }
 
 
-            public static AmqpMethod valueOf(Codec c) {
+            public static AmqpStartMethod decode(Codec c) {
 
                 short versionMajor = c.readConnectionStartMajorVersion();
                 short versionMinor = c.readConnectionStartMinorVersion();
@@ -147,13 +181,53 @@ public class AmqpMethod {
 
                 return new AmqpStartMethod(versionMajor, versionMinor, serverProperties, mechanisms, locales);
             }
+
+
+            @Override
+            Clazz getMethodClazz() {
+
+                return Clazz.CHANNEL;
+            }
+
+
+            @Override
+            ID getMethodId() {
+
+                return ID.START;
+            }
         }
 
         public static class AmqpStartOkMethod extends AmqpMethod {
 
-            public static AmqpMethod valueOf(Codec c) {
+            private AmqpStartOkMethod() {
 
-                return null;
+                // TODO!
+            }
+
+            public static ByteBuf encode(AmqpMethod msg) {
+
+                // TODO!
+                return Unpooled.copiedBuffer(new byte[] { 'H', 'E', 'L', 'O' });
+            }
+
+
+            public static AmqpStartOkMethod response(AmqpMethod msg) {
+
+                return new AmqpStartOkMethod();
+            }
+
+
+            @Override
+            Clazz getMethodClazz() {
+
+                return Clazz.CHANNEL;
+            }
+
+
+            @Override
+            ID getMethodId() {
+
+                return ID.START_OK;
             }
         }
     }
