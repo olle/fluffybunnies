@@ -57,9 +57,19 @@ public final class Connection {
 
     static class Negotiate extends SimpleChannelInboundHandler<AmqpMethod> {
 
+        enum State {
+
+            initial,
+            start,
+            start_ok;
+        }
+
+        private State state;
+
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
 
+            this.state = State.initial;
             ctx.writeAndFlush(AmqpProtocol.create());
         }
 
@@ -67,8 +77,8 @@ public final class Connection {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, AmqpMethod msg) throws Exception {
 
-            if (msg instanceof AmqpStartMethod) {
-                System.out.println("Start: " + msg);
+            if (msg instanceof AmqpStartMethod && state == State.initial) {
+                System.out.println("Will respond to start: " + msg);
             }
         }
     }
