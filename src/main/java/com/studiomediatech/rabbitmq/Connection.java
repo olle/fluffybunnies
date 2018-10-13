@@ -2,9 +2,11 @@ package com.studiomediatech.rabbitmq;
 
 import com.studiomediatech.amqp.codec.AmqpFrame;
 import com.studiomediatech.amqp.codec.AmqpMethod;
-import com.studiomediatech.amqp.codec.AmqpMethod.Connection.AmqpStartMethod;
-import com.studiomediatech.amqp.codec.AmqpMethod.Connection.AmqpStartOkMethod;
 import com.studiomediatech.amqp.codec.AmqpProtocol;
+import com.studiomediatech.amqp.codec.AmqpStartMethod;
+import com.studiomediatech.amqp.codec.AmqpStartOkMethod;
+import com.studiomediatech.amqp.codec.Decoder;
+import com.studiomediatech.amqp.codec.Encoder;
 
 import io.netty.bootstrap.Bootstrap;
 
@@ -45,8 +47,8 @@ public final class Connection {
                             .addLast("logger", new LoggingHandler(LogLevel.INFO))
                             .addLast("protocol-encoder", new AmqpProtocol.Encoder())
                             .addLast("frame-decoder", new AmqpFrame.Decoder())
-                            .addLast("method-decoder", new AmqpMethod.Decoder())
-                            .addLast("method-encoder", new AmqpMethod.Encoder())
+                            .addLast("method-decoder", new Decoder())
+                            .addLast("method-encoder", new Encoder())
                             .addLast("handler", new Negotiate());
                         }
                     });
@@ -81,7 +83,7 @@ public final class Connection {
 
             if (msg instanceof AmqpStartMethod && state == State.initial) {
                 System.out.println("Will respond to start: " + msg);
-                ctx.writeAndFlush(AmqpStartOkMethod.response(msg));
+                ctx.writeAndFlush(AmqpStartOkMethod.response((AmqpStartMethod) msg));
             }
         }
     }

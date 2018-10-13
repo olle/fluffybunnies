@@ -66,11 +66,11 @@ public final class AmqpProtocol {
                 throw new IllegalStateException("Wrong initial byte in AMQP protocol header");
             }
 
-            short m = in.readUnsignedByte();
-            short q = in.readUnsignedByte();
-            short p = in.readUnsignedByte();
+            in.readUnsignedByte(); // 'M'
+            in.readUnsignedByte(); // 'Q'
+            in.readUnsignedByte(); // 'P'
 
-            short zero = in.readUnsignedByte();
+            in.readUnsignedByte(); // 0
 
             short major = in.readUnsignedByte();
             short minor = in.readUnsignedByte();
