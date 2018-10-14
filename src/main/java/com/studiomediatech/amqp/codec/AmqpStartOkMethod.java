@@ -10,15 +10,14 @@ import java.util.Map;
 public class AmqpStartOkMethod extends AmqpMethod {
 
     private final Map<String, Object> clientProperties;
-    private final String mechanisms;
+    private final String mechanism;
     private final String response;
     private final String locale;
 
-    private AmqpStartOkMethod(Map<String, Object> clientProperties, String mechanisms, String response,
-        String locale) {
+    private AmqpStartOkMethod(Map<String, Object> clientProperties, String mechanism, String response, String locale) {
 
         this.clientProperties = clientProperties;
-        this.mechanisms = mechanisms;
+        this.mechanism = mechanism;
         this.response = response;
         this.locale = locale;
     }
@@ -26,7 +25,7 @@ public class AmqpStartOkMethod extends AmqpMethod {
     @Override
     public String toString() {
 
-        return "AmqpStartOkMethod [clientProperties=" + clientProperties + ", mechanisms=" + mechanisms + ", response="
+        return "AmqpStartOkMethod [clientProperties=" + clientProperties + ", mechanism=" + mechanism + ", response="
             + response + ", locale=" + locale + "]";
     }
 
@@ -36,11 +35,14 @@ public class AmqpStartOkMethod extends AmqpMethod {
         AmqpStartOkMethod source = (AmqpStartOkMethod) msg;
 
         ByteBuf buf = Unpooled.buffer();
+
         Codec c = Codec.wrapping(buf);
+        c.writeConnectionStartOkClientProperties(source.clientProperties);
+        c.writeConnectionStartOkMechanism(source.mechanism);
+        c.writeConnectionStartOkResponse(source.response);
+        c.writeConnectionStartOkLocale(source.locale);
 
-        c.writeTable(source.clientProperties);
-
-        return buf; // Unpooled.copiedBuffer(new byte[] { 'H', 'E', 'L', 'O' });
+        return buf;
     }
 
 

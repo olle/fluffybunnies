@@ -1,7 +1,17 @@
 package com.studiomediatech.amqp.codec;
 
+import com.studiomediatech.amqp.codec.AmqpMethod.Clazz;
+import com.studiomediatech.amqp.codec.AmqpMethod.ID;
+import com.studiomediatech.amqp.protocol.AmqpFrame;
+
 import io.netty.buffer.ByteBuf;
 
+import io.netty.channel.ChannelHandlerContext;
+
+import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.handler.codec.MessageToMessageDecoder;
+
+import java.util.List;
 import java.util.function.Function;
 
 
@@ -97,4 +107,37 @@ public abstract class AmqpMethod {
 
 
     abstract ID getMethodId();
+
+    public static class Encoder extends MessageToByteEncoder<AmqpMethod> {
+
+        @Override
+        protected void encode(ChannelHandlerContext ctx, AmqpMethod msg, ByteBuf out) throws Exception {
+
+            Clazz clazz = msg.getMethodClazz();
+            ID id = msg.getMethodId();
+
+            ByteBuf buf = clazz.byteFactoryFor(id).apply(msg);
+            out.writeBytes(buf);
+        }
+    }
+
+    public static class Decoder extends MessageToMessageDecoder<AmqpFrame> {
+
+        @Override
+        protected void decode(ChannelHandlerContext ctx, AmqpFrame msg, List<Object> out) throws Exception {
+
+            if (msg.unlessMethod()) {
+                return;
+            }
+
+            ByteBuf buf = msg.payload();
+            Codec c = Codec.wrapping(buf);
+
+            Clazz clazz = c.readMethodClazz();
+            ID id = c.readMethodId();
+
+            AmqpMethod method = clazz.messageFactoryFor(id).apply(c);
+            out.add(method);
+        }
+    }
 }

@@ -1,6 +1,5 @@
 package com.studiomediatech.amqp.codec;
 
-import com.studiomediatech.amqp.codec.AmqpFrame.Type;
 import com.studiomediatech.amqp.codec.AmqpMethod.Clazz;
 import com.studiomediatech.amqp.codec.AmqpMethod.ID;
 
@@ -23,48 +22,24 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 
-public final class Codec {
+public class Codec {
 
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
-    private final ByteBuf buf;
+    protected ByteBuf buf;
 
-    private Codec(ByteBuf buf) {
+    protected Codec(ByteBuf buf) {
 
         this.buf = buf;
     }
 
-    public static Codec wrapping(ByteBuf in) {
+    protected static Codec wrapping(ByteBuf in) {
 
         return new Codec(in);
     }
 
 
-    Type readFrameType() {
-
-        return AmqpFrame.Type.valueOf(buf.readUnsignedByte());
-    }
-
-
-    int readFrameChannelNumber() {
-
-        return buf.readUnsignedShort();
-    }
-
-
-    long readFramePayloadSize() {
-
-        return buf.readUnsignedInt();
-    }
-
-
-    ByteBuf readFramePayload(long size) {
-
-        return _safeSizedSubBuffer(size);
-    }
-
-
-    private ByteBuf _safeSizedSubBuffer(long size) {
+    protected ByteBuf _safeSizedSubBuffer(long size) {
 
         if (size <= Integer.MAX_VALUE) {
             return buf.readRetainedSlice((int) size);
@@ -82,16 +57,6 @@ public final class Codec {
     }
 
 
-    void readFrameEndMark() {
-
-        short eof = buf.readUnsignedByte();
-
-        if (eof != 0xCE) {
-            throw new IllegalStateException("Invalid end of frame marker");
-        }
-    }
-
-
     Clazz readMethodClazz() {
 
         return AmqpMethod.Clazz.valueOf(buf.readUnsignedShort());
@@ -104,15 +69,33 @@ public final class Codec {
     }
 
 
-    short readConnectionStartMajorVersion() {
+    protected short readConnectionStartMajorVersion() {
 
         return buf.readUnsignedByte();
     }
 
 
-    short readConnectionStartMinorVersion() {
+    protected short readConnectionStartMinorVersion() {
 
         return buf.readUnsignedByte();
+    }
+
+
+    protected Map<String, Object> readConnectionStartServerProperties() {
+
+        return readTable();
+    }
+
+
+    protected String readConnectionStartMechanisms() {
+
+        return readLongString();
+    }
+
+
+    protected String readConnectionStartLocales() {
+
+        return readLongString();
     }
 
 
@@ -369,24 +352,6 @@ public final class Codec {
     }
 
 
-    Map<String, Object> readConnectionStartServerProperties() {
-
-        return readTable();
-    }
-
-
-    String readConnectionStartMechanisms() {
-
-        return readLongString();
-    }
-
-
-    String readConnectionStartLocales() {
-
-        return readLongString();
-    }
-
-
     void writeTable(Map<String, Object> table) {
 
         int length = _tableLength(table);
@@ -496,6 +461,44 @@ public final class Codec {
 
     private int _shortStringLength(String value) {
 
-        return 1 + value.getBytes(UTF8).length;
+        return ShortString.valueOf(value).length();
+    }
+
+
+    protected void writeConnectionStartOkClientProperties(Map<String, Object> clientProperties) {
+
+        writeTable(clientProperties);
+    }
+
+
+    protected void writeConnectionStartOkMechanism(String mechanism) {
+
+        writeShortString(mechanism);
+    }
+
+
+    protected void writeConnectionStartOkResponse(String response) {
+
+        writeLongString(response);
+    }
+
+
+    protected void writeConnectionStartOkLocale(String locale) {
+
+        writeShortString(locale);
+    }
+
+
+    void writeLongString(String value) {
+
+        buf.writeInt(_longStringLength(value));
+        buf.writeBytes(value.getBytes(UTF8));
+    }
+
+
+    void writeShortString(String value) {
+
+        buf.writeByte(_shortStringLength(value));
+        buf.writeBytes(value.getBytes(UTF8));
     }
 }

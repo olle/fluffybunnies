@@ -5,6 +5,8 @@ import java.nio.charset.Charset;
 
 final class ShortString {
 
+    private static final Charset UTF8 = Charset.forName("UTF-8");
+
     private String value;
 
     public ShortString(String value) {
@@ -21,6 +23,18 @@ final class ShortString {
 
     public static ShortString valueOf(byte[] value) {
 
-        return new ShortString(new String(value, Charset.forName("UTF-8")));
+        return new ShortString(new String(value, UTF8));
+    }
+
+
+    public static ShortString valueOf(String value) {
+
+        return new ShortString(value);
+    }
+
+
+    public int length() {
+
+        return 1 + value.getBytes(UTF8).length;
     }
 }

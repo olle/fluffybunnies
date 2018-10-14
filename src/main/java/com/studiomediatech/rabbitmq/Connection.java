@@ -1,12 +1,10 @@
 package com.studiomediatech.rabbitmq;
 
-import com.studiomediatech.amqp.codec.AmqpFrame;
 import com.studiomediatech.amqp.codec.AmqpMethod;
 import com.studiomediatech.amqp.codec.AmqpProtocol;
 import com.studiomediatech.amqp.codec.AmqpStartMethod;
 import com.studiomediatech.amqp.codec.AmqpStartOkMethod;
-import com.studiomediatech.amqp.codec.Decoder;
-import com.studiomediatech.amqp.codec.Encoder;
+import com.studiomediatech.amqp.protocol.AmqpFrame;
 
 import io.netty.bootstrap.Bootstrap;
 
@@ -45,10 +43,11 @@ public final class Connection {
 
                             ch.pipeline()
                             .addLast("logger", new LoggingHandler(LogLevel.INFO))
-                            .addLast("protocol-encoder", new AmqpProtocol.Encoder())
                             .addLast("frame-decoder", new AmqpFrame.Decoder())
-                            .addLast("method-decoder", new Decoder())
-                            .addLast("method-encoder", new Encoder())
+                            .addLast("method-decoder", new AmqpMethod.Decoder())
+                            .addLast("protocol-encoder", new AmqpProtocol.Encoder())
+                            .addLast("frame-encoder", new AmqpFrame.Encoder())
+                            .addLast("method-encoder", new AmqpMethod.Encoder())
                             .addLast("handler", new Negotiate());
                         }
                     });
