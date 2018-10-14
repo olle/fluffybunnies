@@ -352,13 +352,13 @@ public final class Codec {
 
     Integer readShortShortInteger() {
 
-        return Integer.valueOf(buf.readByte());
+        return ShortShortInt.valueOf(buf.readByte()).toInteger();
     }
 
 
     Integer readShortShortUInteger() {
 
-        return Integer.valueOf(buf.readUnsignedByte());
+        return ShortShortUInt.valueOf(buf.readUnsignedByte()).toInteger();
     }
 
 
@@ -415,10 +415,35 @@ public final class Codec {
 
     private int _fieldValueLength(Object value) {
 
-        if (value instanceof Boolean) {
+        boolean $ = false;
+
+        if ($ // NOSONAR
+                || value instanceof Boolean // NOSONAR
+                || value instanceof ShortShortInt // NOSONAR
+                || value instanceof ShortShortUInt) {
             return 1;
         }
 
-        return 0;
+        if ($ // NOSONAR
+                || value instanceof ShortInt // NOSONAR
+                || value instanceof ShortUInt) {
+            return 2;
+        }
+
+        if ($ // NOSONAR
+                || value instanceof LongInt // NOSONAR
+                || value instanceof LongUInt // NOSONAR
+                || value instanceof Float) {
+            return 4;
+        }
+
+        if ($ // NOSONAR
+                || value instanceof LongLongInt // NOSONAR
+                || value instanceof LongLongUInt // NOSONAR
+                || value instanceof Double) {
+            return 8;
+        }
+
+        throw new IllegalArgumentException("Unkonwn field value, cannot supply length for " + value);
     }
 }

@@ -15,14 +15,8 @@ final class ShortShortInt {
     }
 
 
-    public byte asByte() {
+    public Integer toInteger() {
 
-        return this.value;
-    }
-
-
-    public int asInt() {
-
-        return (int) this.value;
+        return Integer.valueOf(value);
     }
 }
