@@ -2,6 +2,7 @@ package com.studiomediatech.amqp.codec;
 
 import java.util.Map;
 
+
 public class AmqpStartMethod extends AmqpMethod {
 
     private final short versionMajor;
@@ -10,7 +11,7 @@ public class AmqpStartMethod extends AmqpMethod {
     private final String mechanisms;
     private final String locales;
 
-    public AmqpStartMethod(short versionMajor, short versionMinor, Map<String, Object> serverProperties,
+    private AmqpStartMethod(short versionMajor, short versionMinor, Map<String, Object> serverProperties,
         String mechanisms, String locales) {
 
         this.versionMajor = versionMajor;

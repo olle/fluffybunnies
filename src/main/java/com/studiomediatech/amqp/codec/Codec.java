@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 
 public final class Codec {
@@ -382,5 +383,42 @@ public final class Codec {
     String readConnectionStartLocales() {
 
         return readLongString();
+    }
+
+
+    void writeTable(Map<String, Object> table) {
+
+        // ALL TABLES ARE EMPTY!
+        buf.writeInt(_tableLength(table));
+    }
+
+
+    private int _tableLength(Map<String, Object> table) {
+
+        int length = 0;
+
+        for (Entry<String, Object> entry : table.entrySet()) {
+            length += _fieldNameLength(entry.getKey());
+            length += _fieldValueLength(entry.getValue());
+        }
+
+        return length;
+    }
+
+
+    private int _fieldNameLength(String fieldName) {
+
+        // 1-byte length + the number bytes of the string.
+        return 1 + fieldName.getBytes(DEFAULT).length;
+    }
+
+
+    private int _fieldValueLength(Object value) {
+
+        if (value instanceof Boolean) {
+            return 1;
+        }
+
+        return 0;
     }
 }
