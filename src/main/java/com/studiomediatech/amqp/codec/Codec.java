@@ -15,6 +15,7 @@ import java.nio.charset.Charset;
 import java.time.Instant;
 
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,7 +25,7 @@ import java.util.Map.Entry;
 
 public final class Codec {
 
-    private static final Charset DEFAULT = Charset.forName("UTF-8");
+    private static final Charset UTF8 = Charset.forName("UTF-8");
 
     private final ByteBuf buf;
 
@@ -165,28 +166,28 @@ public final class Codec {
                 return readBoolean();
 
             case 'b':
-                return readShortShortInteger();
+                return readShortShortInt();
 
             case 'B':
-                return readShortShortUInteger();
+                return readShortShortUInt();
 
             case 'U':
-                return readShortInteger();
+                return readShortInt();
 
             case 'u':
-                return readShortUInteger();
+                return readShortUInt();
 
             case 'I':
-                return readLongInteger();
+                return readLongInt();
 
             case 'i':
-                return readLongUInteger();
+                return readLongUInt();
 
             case 'L':
-                return readLongLongInteger();
+                return readLongLongInt();
 
             case 'l':
-                return readLongLongUInteger();
+                return readLongLongUInt();
 
             case 'f':
                 return readFloat();
@@ -223,7 +224,7 @@ public final class Codec {
 
     Instant readTimestamp() {
 
-        BigInteger value = readLongLongUInteger();
+        BigInteger value = readLongLongUInt();
 
         return Instant.ofEpochSecond(value.longValue());
     }
@@ -278,42 +279,42 @@ public final class Codec {
     }
 
 
-    Long readLongLongInteger() {
+    Long readLongLongInt() {
 
-        return Long.valueOf(buf.readLong());
+        return LongLongInt.valueOf(buf.readLong()).toLong();
     }
 
 
-    BigInteger readLongLongUInteger() {
+    BigInteger readLongLongUInt() {
 
         byte[] val = new byte[8];
         buf.readBytes(val);
 
-        return new BigInteger(val);
+        return LongLongUInt.valueOf(val).toBigInteger();
     }
 
 
-    Integer readLongInteger() {
+    Integer readLongInt() {
 
-        return Integer.valueOf(buf.readInt());
+        return LongInt.valueOf(buf.readInt()).toInteger();
     }
 
 
-    Long readLongUInteger() {
+    Long readLongUInt() {
 
-        return Long.valueOf(buf.readUnsignedInt());
+        return LongUInt.valueOf(buf.readUnsignedInt()).toLong();
     }
 
 
-    Integer readShortInteger() {
+    Integer readShortInt() {
 
-        return Integer.valueOf(buf.readShort());
+        return ShortInt.valueOf(buf.readShort()).toInteger();
     }
 
 
-    Integer readShortUInteger() {
+    Integer readShortUInt() {
 
-        return Integer.valueOf(buf.readUnsignedShort());
+        return ShortUInt.valueOf(buf.readUnsignedShort()).toInteger();
     }
 
 
@@ -323,7 +324,7 @@ public final class Codec {
         byte[] str = new byte[size];
         buf.readBytes(str);
 
-        return new String(str, DEFAULT);
+        return ShortString.valueOf(str).toString();
     }
 
 
@@ -335,7 +336,7 @@ public final class Codec {
             byte[] str = new byte[(int) size];
             buf.readBytes(str);
 
-            return new String(str, DEFAULT);
+            return LongString.valueOf(str).toString();
         }
 
         int rest = (int) (size - Integer.MAX_VALUE);
@@ -346,17 +347,17 @@ public final class Codec {
         buf.readBytes(p1);
         buf.readBytes(p2);
 
-        return Unpooled.wrappedBuffer(p1, p2).toString(DEFAULT);
+        return LongString.valueOf(p1, p2).toString();
     }
 
 
-    Integer readShortShortInteger() {
+    Integer readShortShortInt() {
 
         return ShortShortInt.valueOf(buf.readByte()).toInteger();
     }
 
 
-    Integer readShortShortUInteger() {
+    Integer readShortShortUInt() {
 
         return ShortShortUInt.valueOf(buf.readUnsignedByte()).toInteger();
     }
@@ -388,8 +389,9 @@ public final class Codec {
 
     void writeTable(Map<String, Object> table) {
 
-        // ALL TABLES ARE EMPTY!
-        buf.writeInt(_tableLength(table));
+        int length = _tableLength(table);
+
+        buf.writeInt(length);
     }
 
 
@@ -408,12 +410,16 @@ public final class Codec {
 
     private int _fieldNameLength(String fieldName) {
 
-        // 1-byte length + the number bytes of the string.
-        return 1 + fieldName.getBytes(DEFAULT).length;
+        return _shortStringLength(fieldName);
     }
 
 
+    @SuppressWarnings("unchecked")
     private int _fieldValueLength(Object value) {
+
+        if (value == null) {
+            return 0;
+        }
 
         boolean $ = false;
 
@@ -440,10 +446,56 @@ public final class Codec {
         if ($ // NOSONAR
                 || value instanceof LongLongInt // NOSONAR
                 || value instanceof LongLongUInt // NOSONAR
-                || value instanceof Double) {
+                || value instanceof Double // NOSONAR
+                || value instanceof Date // NOSONAR
+                || value instanceof Instant) {
             return 8;
         }
 
+        if (value instanceof BigDecimal) {
+            return 1 + 4; // scale + long-uint
+        }
+
+        if (value instanceof ShortString) {
+            return _shortStringLength(value.toString());
+        }
+
+        if (value instanceof LongString) {
+            return _longStringLength(value.toString());
+        }
+
+        if (value instanceof List) {
+            return _arrayLength((List<Object>) value);
+        }
+
+        if (value instanceof Map) {
+            return _tableLength((Map<String, Object>) value);
+        }
+
         throw new IllegalArgumentException("Unkonwn field value, cannot supply length for " + value);
+    }
+
+
+    private int _arrayLength(List<?> values) {
+
+        int length = 4; // fields counter
+
+        for (Object value : values) {
+            length += _fieldValueLength(value);
+        }
+
+        return length;
+    }
+
+
+    private int _longStringLength(String value) {
+
+        return 4 + value.getBytes(UTF8).length;
+    }
+
+
+    private int _shortStringLength(String value) {
+
+        return 1 + value.getBytes(UTF8).length;
     }
 }
