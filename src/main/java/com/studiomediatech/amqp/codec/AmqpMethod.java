@@ -1,9 +1,5 @@
 package com.studiomediatech.amqp.codec;
 
-import com.studiomediatech.amqp.codec.AmqpMethod.Clazz;
-import com.studiomediatech.amqp.codec.AmqpMethod.ID;
-import com.studiomediatech.amqp.protocol.AmqpFrame;
-
 import io.netty.buffer.ByteBuf;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -13,6 +9,8 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 
 import java.util.List;
 import java.util.function.Function;
+
+import com.studiomediatech.amqp.protocol.AmqpFrame;
 
 
 public abstract class AmqpMethod {

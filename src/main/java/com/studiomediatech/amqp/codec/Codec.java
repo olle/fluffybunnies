@@ -1,8 +1,5 @@
 package com.studiomediatech.amqp.codec;
 
-import com.studiomediatech.amqp.codec.AmqpMethod.Clazz;
-import com.studiomediatech.amqp.codec.AmqpMethod.ID;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -20,6 +17,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import com.studiomediatech.amqp.codec.AmqpMethod.Clazz;
+import com.studiomediatech.amqp.codec.AmqpMethod.ID;
 
 
 public class Codec {
